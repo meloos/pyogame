@@ -4,14 +4,14 @@ import unittest
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
 import json
-import math
-import random
+from ogame.fingerprint import Fingerprint
 
 try:
     import constants as const
 except ImportError:
     import ogame.constants as const
 
+USER_AGENT = "Mozilla/5.0 (X11; Ubuntu; Linux aarch64; rv:109.0) Gecko/20100101 Firefox/111.0"
 
 class OGame(object):
     def __init__(
@@ -25,20 +25,22 @@ class OGame(object):
         self.universe = universe
         self.username = username
         self.password = password
-        self.user_agent = {'User-Agent': user_agent}
+        
         self.proxy = proxy
         self.language = language
         self.server_number = server_number
         self.session = requests.Session()
         self.session.proxies.update({'https': self.proxy})
         self.token = token
+
+        self.user_agent = user_agent
+
         if self.user_agent is None:
-            self.user_agent = {
+            self.user_agent = USER_AGENT
+        self.session.headers.update({
                 'User-Agent':
-                    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
-                    '(KHTML, like Gecko) Chrome/100.0.4324.182 Safari/537.36'
-            }
-        self.session.headers.update(self.user_agent)
+                    self.user_agent
+            })
 
         if token is None:
             self.login()
@@ -103,6 +105,8 @@ class OGame(object):
         )['content'])
 
     def login(self):
+        tra = Fingerprint(self.user_agent)
+        # print(json.dumps(tra.obj,sort_keys=True, indent=4))
         self.session.get('https://lobby.ogame.gameforge.com/')
         login_data = {
             'identity': self.username,
@@ -111,7 +115,8 @@ class OGame(object):
             'gfLang': 'en',
             'platformGameId': '1dfd8e7e-6e1a-4eb1-8c64-03c3b62efd2f',
             'gameEnvironmentId': '0a31d605-ffaf-43e7-aa02-d06df7116fc8',
-            'autoGameAccountCreation': False
+            'autoGameAccountCreation': False,
+            'blackbox': f'tra:{tra.encrypted}'
         }
         response = self.session.post(
             'https://gameforge.com/api/v1/auth/thin/sessions',
@@ -1821,7 +1826,7 @@ class OGame(object):
         eventFleet = [
             child.parent.parent
             for child in eventFleet
-            if child.parent.parent['id'][9:10] is not 'u'
+            if child.parent.parent['id'][9:10] != 'u'
         ]
 
         fleet_ids = [id['id'] for id in eventFleet]
@@ -2767,3 +2772,4 @@ def BeautifulSoup4(response):
     parsed.find_partial = find_partial
     parsed.find_all_partial = find_all_partial
     return parsed
+
